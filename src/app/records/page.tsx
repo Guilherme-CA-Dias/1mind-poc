@@ -7,8 +7,10 @@ import { RefreshCw, Loader2, Search } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useAuth } from "@/app/auth-provider";
 import { Toast } from "@/components/ui/toast";
+import { useIntegrations } from "@integration-app/react";
 
 interface FormDefinition {
 	_id: string;
@@ -28,6 +30,7 @@ export default function RecordsPage() {
 		}
 		return "";
 	});
+	const [selectedIntegration, setSelectedIntegration] = useState("");
 	const [searchQuery, setSearchQuery] = useState("");
 	const [forms, setForms] = useState<FormDefinition[]>([]);
 	const [isLoadingForms, setIsLoadingForms] = useState(true);
@@ -36,6 +39,7 @@ export default function RecordsPage() {
 		message: string;
 	} | null>(null);
 	const { customerId } = useAuth();
+	const { integrations } = useIntegrations();
 
 	const {
 		records,
@@ -46,7 +50,12 @@ export default function RecordsPage() {
 		importRecords,
 		isImporting,
 		mutate,
-	} = useRecords(selectedAction || null, searchQuery);
+	} = useRecords(selectedAction || null, searchQuery, selectedIntegration);
+
+	// Reset selected integration when form selection changes
+	useEffect(() => {
+		setSelectedIntegration("");
+	}, [selectedAction]);
 
 	// Fetch forms from MongoDB
 	useEffect(() => {
@@ -111,6 +120,14 @@ export default function RecordsPage() {
 	};
 
 	const handleImportRecords = async () => {
+		if (!selectedIntegration) {
+			setToast({
+				type: "error",
+				message: "Please select an integration to import from.",
+			});
+			return;
+		}
+
 		try {
 			const result = await importRecords();
 
@@ -148,56 +165,87 @@ export default function RecordsPage() {
 			</div>
 
 			{/* Record Type Selection and Search */}
-			<div className="grid gap-6 md:grid-cols-[2fr,2fr,auto]">
-				<Select
-					value={selectedAction}
-					onChange={(e) => setSelectedAction(e.target.value)}
-					className="w-full"
-					disabled={isLoadingForms}
-				>
-					<option value="">Select record type</option>
-					{forms.map((form) => {
-						// For default forms, use the standard action keys (get-contacts, get-leads, etc.)
-						// For custom forms, use get-objects with the form ID
-						const actionKey =
-							form.type === "default"
-								? `get-${form.formId}`
-								: `get-${form.formId}`;
+			<div className="space-y-4">
+				<div className="grid gap-6 md:grid-cols-[2fr,2fr]">
+					<Select
+						value={selectedAction}
+						onChange={(e) => setSelectedAction(e.target.value)}
+						className="w-full"
+						disabled={isLoadingForms}
+					>
+						<option value="">Select record type</option>
+						{forms.map((form) => {
+							// For default forms, use the standard action keys (get-contacts, get-leads, etc.)
+							// For custom forms, use get-objects with the form ID
+							const actionKey =
+								form.type === "default"
+									? `get-${form.formId}`
+									: `get-${form.formId}`;
 
-						return (
-							<option key={form.formId} value={actionKey}>
-								{form.formTitle} {form.type === "custom" ? "(Custom)" : ""}
-							</option>
-						);
-					})}
-				</Select>
+							return (
+								<option key={form.formId} value={actionKey}>
+									{form.formTitle} {form.type === "custom" ? "(Custom)" : ""}
+								</option>
+							);
+						})}
+					</Select>
 
-				<div className="relative">
-					<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500 dark:text-gray-400" />
-					<Input
-						placeholder="Search records..."
-						className="pl-10"
-						value={searchQuery}
-						onChange={(e) => setSearchQuery(e.target.value)}
-					/>
+					<div className="relative">
+						<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500 dark:text-gray-400" />
+						<Input
+							placeholder="Search records..."
+							className="pl-10"
+							value={searchQuery}
+							onChange={(e) => setSearchQuery(e.target.value)}
+						/>
+					</div>
 				</div>
 
-				<Button
-					onClick={handleImportRecords}
-					disabled={!selectedAction || isImporting}
-				>
-					{isImporting ? (
-						<>
-							<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-							Importing...
-						</>
-					) : (
-						<>
-							<RefreshCw className="mr-2 h-4 w-4" />
-							Import Records
-						</>
-					)}
-				</Button>
+				{selectedAction && (
+					<div className="flex items-center gap-4">
+						<div className="flex-1">
+							<Label
+								htmlFor="integration-select"
+								className="text-sm font-medium text-gray-700 dark:text-gray-300"
+							>
+								Select Integration (for import and filtering)
+							</Label>
+							<Select
+								id="integration-select"
+								value={selectedIntegration}
+								onChange={(e) => setSelectedIntegration(e.target.value)}
+								className="w-full bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 border-gray-200 dark:border-gray-800"
+							>
+								<option value="">All integrations</option>
+								{integrations.map((integration) => (
+									<option key={integration.key} value={integration.key}>
+										{integration.name}
+									</option>
+								))}
+							</Select>
+						</div>
+						<div className="flex items-end">
+							<Button
+								onClick={handleImportRecords}
+								disabled={
+									!selectedAction || !selectedIntegration || isImporting
+								}
+							>
+								{isImporting ? (
+									<>
+										<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+										Importing...
+									</>
+								) : (
+									<>
+										<RefreshCw className="mr-2 h-4 w-4" />
+										Import Records
+									</>
+								)}
+							</Button>
+						</div>
+					</div>
+				)}
 			</div>
 
 			{/* Records Table */}

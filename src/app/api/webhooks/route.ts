@@ -6,6 +6,7 @@ import { RecordActionKey } from "@/lib/constants";
 interface WebhookPayload {
 	customerId: string;
 	recordType: RecordActionKey;
+	integrationKey?: string;
 	data: {
 		id: string | number;
 		name?: string;
@@ -26,7 +27,29 @@ export async function POST(request: NextRequest) {
 			customerId: payload.customerId,
 			recordId: payload.data.id,
 			recordType: payload.recordType,
+			integrationKey: payload.integrationKey,
 		});
+
+		// Log the full payload to understand its structure
+		console.log("Full webhook payload:", JSON.stringify(payload, null, 2));
+
+		// Try to determine integration key from payload if not provided
+		let integrationKey = payload.integrationKey;
+		if (!integrationKey) {
+			// Check if payload has connection information
+			if ((payload as any).connection?.integration?.key) {
+				integrationKey = (payload as any).connection.integration.key;
+				console.log(
+					"Determined integration key from connection:",
+					integrationKey
+				);
+			} else if ((payload as any).integrationKey) {
+				integrationKey = (payload as any).integrationKey;
+				console.log("Found integration key in payload:", integrationKey);
+			} else {
+				console.log("No integration key found in payload");
+			}
+		}
 
 		await connectToDatabase();
 
@@ -59,6 +82,7 @@ export async function POST(request: NextRequest) {
 				id: payload.data.id.toString(),
 				customerId: payload.customerId,
 				recordType: payload.recordType,
+				integrationKey: integrationKey,
 				_id: undefined,
 				__v: undefined,
 				updatedTime: undefined,
@@ -90,6 +114,7 @@ export async function POST(request: NextRequest) {
 					id: payload.data.id.toString(),
 					customerId: payload.customerId,
 					recordType: payload.recordType,
+					integrationKey: integrationKey,
 					updatedTime: new Date().toISOString(),
 				},
 			},
@@ -104,6 +129,7 @@ export async function POST(request: NextRequest) {
 			_id: result._id,
 			customerId: payload.customerId,
 			recordType: payload.recordType,
+			integrationKey: integrationKey,
 			status: existingRecord ? "updated" : "created",
 		});
 
@@ -113,6 +139,7 @@ export async function POST(request: NextRequest) {
 			_id: result._id,
 			customerId: payload.customerId,
 			recordType: payload.recordType,
+			integrationKey: integrationKey,
 			status: existingRecord ? "updated" : "created",
 		});
 	} catch (error) {

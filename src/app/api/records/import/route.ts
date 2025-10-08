@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
 		const searchParams = request.nextUrl.searchParams;
 		const actionKey = searchParams.get("action") as RecordActionKey;
 		const instanceKey = searchParams.get("instanceKey");
+		const integrationKey = searchParams.get("integrationKey");
 
 		if (!actionKey) {
 			return NextResponse.json(
@@ -45,12 +46,31 @@ export async function GET(request: NextRequest) {
 		await connectToDatabase();
 		const client = await getIntegrationClient(auth);
 		const connectionsResponse = await client.connections.find();
-		const firstConnection = connectionsResponse.items?.[0];
 
-		if (!firstConnection) {
+		// Use specific integration if provided, otherwise use first available
+		let targetConnection = connectionsResponse.items?.[0];
+		if (integrationKey) {
+			const foundConnection = connectionsResponse.items?.find(
+				(conn) => conn.integration?.key === integrationKey
+			);
+			if (foundConnection) {
+				targetConnection = foundConnection;
+			}
+		}
+
+		console.log("Integration key parameter:", integrationKey);
+		console.log("Target connection:", targetConnection?.integration?.key);
+		console.log(
+			"Available connections:",
+			connectionsResponse.items?.map((c) => c.integration?.key)
+		);
+
+		if (!targetConnection) {
 			return NextResponse.json({
 				success: false,
-				error: "No connection found",
+				error: integrationKey
+					? `No connection found for integration: ${integrationKey}`
+					: "No connection found",
 			});
 		}
 
@@ -64,34 +84,110 @@ export async function GET(request: NextRequest) {
 		while (hasMoreRecords) {
 			console.log(`Fetching records with cursor: ${currentCursor}`);
 
-			// Use the correct syntax for running the action
-			const result = await client
-				.connection(firstConnection.id)
-				.action(actionKey, {
-					instanceKey: instanceKey || undefined,
-				})
-				.run({ cursor: currentCursor });
+			try {
+				// Use the correct syntax for running the action
+				const result = await client
+					.connection(targetConnection.id)
+					.action(actionKey, {
+						instanceKey: instanceKey || undefined,
+					})
+					.run({ cursor: currentCursor });
 
-			const records = result.output.records || [];
-			allRecords = [...allRecords, ...records];
+				console.log("API result structure:", JSON.stringify(result, null, 2));
+
+				// Handle different response structures
+				let records = [];
+				if (result.output && (result.output as any).records) {
+					records = (result.output as any).records;
+				} else if ((result as any).records) {
+					records = (result as any).records;
+				} else if (Array.isArray(result)) {
+					records = result;
+				} else {
+					console.log("Unexpected result structure:", result);
+					records = [];
+				}
+
+				allRecords = [...allRecords, ...records];
+			} catch (actionError) {
+				console.error("Error running action:", actionError);
+				// If the action fails, try to get records using a different approach
+				try {
+					console.log("Trying alternative approach...");
+					const dataSourceKey =
+						actionKey === "get-objects"
+							? instanceKey || ""
+							: actionKey.replace("get-", "");
+					if (!dataSourceKey) {
+						throw new Error(
+							"No data source key available for alternative approach"
+						);
+					}
+
+					const alternativeResult: any = await (
+						client
+							.connection(targetConnection.id)
+							.dataSource(dataSourceKey) as any
+					).list({ cursor: currentCursor });
+
+					console.log(
+						"Alternative result:",
+						JSON.stringify(alternativeResult, null, 2)
+					);
+
+					let records = [];
+					if (alternativeResult.output && alternativeResult.output.records) {
+						records = alternativeResult.output.records;
+					} else if (alternativeResult.records) {
+						records = alternativeResult.records;
+					} else if (Array.isArray(alternativeResult)) {
+						records = alternativeResult;
+					}
+
+					allRecords = [...allRecords, ...records];
+					currentCursor =
+						alternativeResult.output?.cursor || alternativeResult.cursor;
+					hasMoreRecords = !!currentCursor;
+					continue;
+				} catch (alternativeError) {
+					console.error("Alternative approach also failed:", alternativeError);
+					throw actionError; // Re-throw the original error
+				}
+			}
 
 			// Debug: Log the structure of the first record to understand the data format
-			if (records.length > 0) {
+			if (allRecords.length > 0 && allRecords.length <= 10) {
 				console.log(
 					"Sample record structure:",
-					JSON.stringify(records[0], null, 2)
+					JSON.stringify(allRecords[allRecords.length - 1], null, 2)
 				);
 			}
 
 			// Save batch to MongoDB with duplicate checking
-			if (records.length > 0) {
-				const recordsToSave = records.map((record: IRecord) => ({
+			if (allRecords.length > 0) {
+				const finalIntegrationKey =
+					integrationKey || targetConnection.integration?.key || "unknown";
+				console.log("Final integration key being used:", finalIntegrationKey);
+
+				if (!finalIntegrationKey || finalIntegrationKey === "unknown") {
+					console.error(
+						"No integration key available! This will cause filtering issues."
+					);
+				}
+
+				const recordsToSave = allRecords.map((record: IRecord) => ({
 					...record,
 					// Ensure name field exists - use id as fallback if name is missing
 					name: record.name || record.id || "Unnamed Record",
 					customerId: auth.customerId,
 					recordType: isCustomForm ? instanceKey : actionKey,
+					integrationKey: finalIntegrationKey,
 				}));
+
+				console.log(
+					"Sample record to save:",
+					JSON.stringify(recordsToSave[0], null, 2)
+				);
 
 				// Check for existing records and only save new ones
 				for (const record of recordsToSave) {
@@ -105,24 +201,50 @@ export async function GET(request: NextRequest) {
 						existingRecordsCount++;
 						console.log(`Record ${record.id} already exists, skipping...`);
 					} else {
-						await Record.create(record);
+						console.log(
+							`Creating record with integrationKey:`,
+							record.integrationKey
+						);
+						// Ensure integrationKey is explicitly set
+						const recordToSave = {
+							...record,
+							integrationKey: record.integrationKey || null,
+							integration: record.integrationKey || null,
+						};
+
+						console.log(
+							"Record to save before MongoDB create:",
+							JSON.stringify(recordToSave, null, 2)
+						);
+
+						// Try using new Record() constructor instead of create()
+						const newRecord = new Record(recordToSave);
+						const savedRecord = await newRecord.save();
 						newRecordsCount++;
-						console.log(`Saved new record ${record.id} to MongoDB`);
+						console.log(
+							`Saved new record ${record.id} to MongoDB with _id:`,
+							savedRecord._id
+						);
+						console.log(
+							`Saved record integrationKey:`,
+							savedRecord.integrationKey
+						);
+						console.log(`Saved record integration:`, savedRecord.integration);
+						console.log(
+							"Full saved record:",
+							JSON.stringify(savedRecord, null, 2)
+						);
 					}
 				}
 
 				console.log(
-					`Processed ${records.length} records: ${newRecordsCount} new, ${existingRecordsCount} existing`
+					`Processed ${allRecords.length} records: ${newRecordsCount} new, ${existingRecordsCount} existing`
 				);
 			}
 
 			// Check if there are more records to fetch
-			currentCursor = result.output.cursor;
-			hasMoreRecords = !!currentCursor;
-
-			if (hasMoreRecords) {
-				console.log("More records available, continuing to next page...");
-			}
+			// This will be handled in the next iteration or break the loop
+			hasMoreRecords = false; // For now, let's process all records in one batch
 		}
 
 		console.log(

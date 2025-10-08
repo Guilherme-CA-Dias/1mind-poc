@@ -5,7 +5,11 @@ import { useState, useCallback, useEffect } from "react";
 import { RECORD_ACTIONS } from "@/lib/constants";
 import { Record } from "@/types/record";
 
-export function useRecords(actionKey: string | null, search: string = "") {
+export function useRecords(
+	actionKey: string | null,
+	search: string = "",
+	integrationKey: string = ""
+) {
 	const [allRecords, setAllRecords] = useState<Record[]>([]);
 	const [isLoadingMore, setIsLoadingMore] = useState(false);
 	const [isImporting, setIsImporting] = useState(false);
@@ -23,7 +27,11 @@ export function useRecords(actionKey: string | null, search: string = "") {
 	const apiEndpoint = actionKey
 		? `/api/records?action=${actionKey}${
 				search ? `&search=${encodeURIComponent(search)}` : ""
-		  }${isCustomForm ? `&instanceKey=${formId}` : ""}`
+		  }${isCustomForm ? `&instanceKey=${formId}` : ""}${
+				integrationKey
+					? `&integrationKey=${encodeURIComponent(integrationKey)}`
+					: ""
+		  }`
 		: null;
 
 	const { data, error, isLoading, mutate } = useSWR<RecordsResponse>(
@@ -31,10 +39,10 @@ export function useRecords(actionKey: string | null, search: string = "") {
 		authenticatedFetcher
 	);
 
-	// Reset records when action or search changes
+	// Reset records when action, search, or integration changes
 	useEffect(() => {
 		setAllRecords([]);
-	}, [actionKey, search]);
+	}, [actionKey, search, integrationKey]);
 
 	useEffect(() => {
 		if (data?.records) {
@@ -52,7 +60,11 @@ export function useRecords(actionKey: string | null, search: string = "") {
 			// Use the actual action key for all forms
 			const endpoint = `/api/records?action=${actionKey}&cursor=${data.cursor}${
 				search ? `&search=${encodeURIComponent(search)}` : ""
-			}${isCustomForm ? `&instanceKey=${formId}` : ""}`;
+			}${isCustomForm ? `&instanceKey=${formId}` : ""}${
+				integrationKey
+					? `&integrationKey=${encodeURIComponent(integrationKey)}`
+					: ""
+			}`;
 
 			const nextPage = (await authenticatedFetcher(
 				endpoint
@@ -74,6 +86,7 @@ export function useRecords(actionKey: string | null, search: string = "") {
 		allRecords,
 		mutate,
 		search,
+		integrationKey,
 		formId,
 		isCustomForm,
 	]);
@@ -86,6 +99,10 @@ export function useRecords(actionKey: string | null, search: string = "") {
 			// Use the actual action key for all forms
 			const endpoint = `/api/records/import?action=${actionKey}${
 				isCustomForm ? `&instanceKey=${formId}` : ""
+			}${
+				integrationKey
+					? `&integrationKey=${encodeURIComponent(integrationKey)}`
+					: ""
 			}`;
 
 			const response = (await authenticatedFetcher(endpoint)) as {

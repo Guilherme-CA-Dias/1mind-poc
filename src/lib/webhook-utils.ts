@@ -49,8 +49,8 @@ interface WebhookPayload {
 
 // Define webhook URLs for default record types
 const WEBHOOK_URLS = {
-	contacts:
-		"https://api.integration.app/webhooks/app-events/4940cec8-9d47-41dd-8d8a-43c6741b048d",
+	leads:
+		"https://api.integration.app/webhooks/app-events/1bb1bf4e-93d1-4079-b3bb-8d4ff6359501",
 	companies:
 		"https://api.integration.app/webhooks/app-events/0502c111-b765-47fd-94cc-450b93bd9e5c",
 	// Default URL for custom objects

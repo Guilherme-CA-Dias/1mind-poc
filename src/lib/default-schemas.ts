@@ -1,18 +1,20 @@
 export const DEFAULT_SCHEMAS = {
 	contacts: {
 		properties: {
-			id: { type: "string", title: "ID" },
-			name: { type: "string", title: "Name" },
-			email: { type: "string", title: "Email", format: "email" },
-			phone: { type: "string", title: "Phone Number", format: "phone" },
-			status: {
+			Id: { type: "string", title: "ID" },
+			Email: { type: "string", title: "Email", format: "email" },
+			Title: { type: "string", title: "Title" },
+			LastName: { type: "string", title: "Last Name" },
+			AccountId: { type: "string", title: "Account ID" },
+			FirstName: { type: "string", title: "First Name" },
+			Management_Level__c: { type: "string", title: "Management Level" },
+			Onemind_Visitor_Id__c: { type: "string", title: "Onemind Visitor ID" },
+			Workiva_Created_Lead_Source__c: {
 				type: "string",
-				title: "Status",
-				enum: ["Active", "Inactive", "Pending"],
-				default: "Active",
+				title: "Workiva Created Lead Source",
 			},
 		},
-		required: ["id", "name", "email"],
+		required: ["Workiva_Created_Lead_Source__c"],
 	},
 	companies: {
 		properties: {
@@ -41,24 +43,19 @@ export const DEFAULT_SCHEMAS = {
 	},
 	tasks: {
 		properties: {
-			id: { type: "string", title: "ID" },
-			name: { type: "string", title: "Name" },
-			taskName: { type: "string", title: "Task Name" },
-			description: { type: "string", title: "Description" },
-			status: {
-				type: "string",
-				title: "Status",
-				enum: ["Not Started", "In Progress", "Completed", "Deferred"],
-			},
-			priority: {
-				type: "string",
-				title: "Priority",
-				enum: ["Low", "Medium", "High", "Urgent"],
-			},
-			dueDate: { type: "string", title: "Due Date", format: "date" },
-			assignedTo: { type: "string", title: "Assigned To" },
+			Type: { type: "string", title: "Type" },
+			WhoId: { type: "string", title: "Who ID" },
+			Status: { type: "string", title: "Status" },
+			WhatId: { type: "string", title: "What ID" },
+			OwnerId: { type: "string", title: "Owner ID" },
+			Subject: { type: "string", title: "Subject" },
+			Priority: { type: "string", title: "Priority" },
+			Description: { type: "string", title: "Description" },
+			ActivityDate: { type: "string", title: "Activity Date", format: "date" },
+			RecordTypeId: { type: "string", title: "Record Type ID" },
+			AIConversationId: { type: "string", title: "AI Conversation ID" },
 		},
-		required: ["id", "name", "taskName"],
+		required: ["Type", "Status", "Priority", "Description"],
 	},
 	leads: {
 		properties: {
@@ -106,6 +103,59 @@ export const DEFAULT_SCHEMAS = {
 			Purchase_Timeline__c: { type: "string", title: "Purchase Timeline" },
 		},
 		required: ["Id"],
+	},
+	AI_Engagement_Conversation__c: {
+		properties: {
+			Lead__c: { type: "string", title: "Lead" },
+			Email__c: { type: "string", title: "Email", format: "email" },
+			Title__c: { type: "string", title: "Title" },
+			Channel__c: { type: "string", title: "Channel" },
+			Contact__c: { type: "string", title: "Contact" },
+			Iteration__c: { type: "string", title: "Iteration" },
+			Last_Name__c: { type: "string", title: "Last Name" },
+			RecordTypeId: { type: "string", title: "Record Type ID" },
+			First_Name__c: { type: "string", title: "First Name" },
+			Pain_Point__c: { type: "string", title: "Pain Point" },
+			Transcript__c: { type: "string", title: "Transcript" },
+			Turn_Count__c: { type: "number", title: "Turn Count" },
+			Audience_Geo__c: { type: "string", title: "Audience Geo" },
+			Channel_Type__c: { type: "string", title: "Channel Type" },
+			Top_Priority__c: { type: "string", title: "Top Priority" },
+			Calendar_Link__c: { type: "string", title: "Calendar Link" },
+			Company_Stage__c: { type: "string", title: "Company Stage" },
+			Channel_Format__c: { type: "string", title: "Channel Format" },
+			Channel_Vendor__c: { type: "string", title: "Channel Vendor" },
+			Audience_Persona__c: { type: "string", title: "Audience Persona" },
+			Management_Level__c: { type: "string", title: "Management Level" },
+			Audience_Solution__c: { type: "string", title: "Audience Solution" },
+			Conversation_Date__c: {
+				type: "string",
+				title: "Conversation Date",
+				format: "date",
+			},
+			Purchase_Timeline__c: { type: "string", title: "Purchase Timeline" },
+			Campaign_Objective__c: { type: "string", title: "Campaign Objective" },
+			Onemind_Session_Id__c: { type: "string", title: "Onemind Session ID" },
+			Onemind_Visitor_Id__c: { type: "string", title: "Onemind Visitor ID" },
+			Solution_Categories__c: { type: "string", title: "Solution Categories" },
+			Conversation_Summary__c: {
+				type: "string",
+				title: "Conversation Summary",
+			},
+			Key_Topics_Discussed__c: {
+				type: "string",
+				title: "Key Topics Discussed",
+			},
+			Calendar_Link_Clicked__c: {
+				type: "string",
+				title: "Calendar Link Clicked",
+			},
+			InferredCompanyName6sense__c: {
+				type: "string",
+				title: "Inferred Company Name 6sense",
+			},
+		},
+		required: [],
 	},
 } as const;
 

@@ -89,6 +89,8 @@ nodes:
             $var: $.input.get-all-lead-fields-by-id.id
           data:
             $var: $.input.get-all-lead-fields-by-id
+          integrationKey:
+            $var: $.integration.key
     links: []
   update-lead-in-my-app:
     type: api-request-to-your-app
@@ -100,6 +102,8 @@ nodes:
             $var: $.input.get-all-lead-fields-by-id2.id
           data:
             $var: $.input.get-all-lead-fields-by-id2
+          integrationKey:
+            $var: $.integration.key
     links: []
   delete-lead-in-my-app:
     type: api-request-to-your-app
@@ -109,6 +113,8 @@ nodes:
         body:
           externalLeadId:
             $var: $.input.lead-deleted-trigger.record.id
+          integrationKey:
+            $var: $.integration.key
         method: POST
     links: []
   lead-deleted-trigger:

@@ -29,6 +29,7 @@ interface FormDefinition {
 
 export default function FormsPage() {
 	const [selectedAction, setSelectedAction] = useState("");
+	const [selectedIntegration, setSelectedIntegration] = useState("");
 	const [isCreatingForm, setIsCreatingForm] = useState(false);
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
 	const [newFormData, setNewFormData] = useState({
@@ -44,6 +45,11 @@ export default function FormsPage() {
 	const [configuring, setConfiguring] = useState<
 		"dataSource" | "fieldMapping" | null
 	>(null);
+
+	// Reset selected integration when form selection changes
+	useEffect(() => {
+		setSelectedIntegration("");
+	}, [selectedAction]);
 
 	// Fetch forms from MongoDB
 	useEffect(() => {
@@ -118,26 +124,38 @@ export default function FormsPage() {
 
 	const handleConfigureDataSource = async () => {
 		const form = forms.find((f) => f.formId === selectedAction.split("-")[1]);
-		if (!form?.integrationKey) return;
+
+		if (!form) {
+			alert("Form not found. Please try again.");
+			return;
+		}
+
+		if (!selectedIntegration) {
+			alert("Please select an integration first.");
+			return;
+		}
 
 		try {
 			setConfiguring("dataSource");
 
+			// Use the exact form ID as the data source key (e.g., 'leads', 'AI_Engagement_Conversation__c', etc.)
+			const dataSourceKey = form.formId;
+
 			// First, open the data source configuration
 			await integrationApp
-				.connection(form.integrationKey)
-				.dataSource("objects", { instanceKey: form.formId })
+				.connection(selectedIntegration)
+				.dataSource(dataSourceKey, { instanceKey: form.formId })
 				.openConfiguration();
 
 			// After configuring data source, create a flow instance for receiving events
 			const flowPull = integrationApp
-				.connection(form.integrationKey)
-				.flow("receive-objects-events", { instanceKey: form.formId })
+				.connection(selectedIntegration)
+				.flow(`receive-${dataSourceKey}-events`, { instanceKey: form.formId })
 				.get({ autoCreate: true });
 
 			const flowPush = integrationApp
-				.connection(form.integrationKey)
-				.flow("send-object-events", { instanceKey: form.formId })
+				.connection(selectedIntegration)
+				.flow(`send-${dataSourceKey}-events`, { instanceKey: form.formId })
 				.get({ autoCreate: true });
 		} catch (error) {
 			console.error("Error configuring data source or creating flow:", error);
@@ -154,33 +172,22 @@ export default function FormsPage() {
 		console.log("Debug - Form integration key:", form?.integrationKey);
 		console.log("Debug - Available integrations:", integrations);
 
-		// For default forms, use the first available integration if no integration key is set
-		let integrationKey = form?.integrationKey;
-		if (
-			!integrationKey &&
-			form?.type === "default" &&
-			integrations.length > 0
-		) {
-			integrationKey = integrations[0].key;
-			console.log(
-				"Debug - Using first available integration for default form:",
-				integrationKey
-			);
+		if (!form) {
+			console.log("Debug - Form not found, returning early");
+			alert("Form not found. Please try again.");
+			return;
 		}
 
-		if (!integrationKey) {
-			console.log("Debug - No integration key found, returning early");
-			alert(
-				"No Integration Available. Please connect an integration first to configure field mapping."
-			);
+		if (!selectedIntegration) {
+			alert("Please select an integration first.");
 			return;
 		}
 
 		try {
 			setConfiguring("fieldMapping");
 
-			// Use the formId as the field mapping key (e.g., 'leads', 'contacts', 'companies', etc.)
-			const fieldMappingKey = form.formId.toLowerCase();
+			// Use the exact formId as the field mapping key (e.g., 'leads', 'AI_Engagement_Conversation__c', etc.)
+			const fieldMappingKey = form.formId;
 
 			// For default forms, don't use instanceKey. For custom forms, use instanceKey.
 			const fieldMappingConfig =
@@ -188,15 +195,15 @@ export default function FormsPage() {
 
 			console.log("Debug - Field mapping key:", fieldMappingKey);
 			console.log("Debug - Field mapping config:", fieldMappingConfig);
-			console.log("Debug - Integration key:", integrationKey);
+			console.log("Debug - Integration key:", selectedIntegration);
 
 			await integrationApp
-				.connection(integrationKey)
+				.connection(selectedIntegration)
 				.fieldMapping(fieldMappingKey, fieldMappingConfig)
 				.setup();
 
 			await integrationApp
-				.connection(integrationKey)
+				.connection(selectedIntegration)
 				.fieldMapping(fieldMappingKey, fieldMappingConfig)
 				.openConfiguration();
 		} catch (error) {
@@ -342,31 +349,56 @@ export default function FormsPage() {
 			</div>
 
 			{selectedAction && (
-				<div className="flex gap-4">
-					<Button
-						onClick={handleConfigureDataSource}
-						className="flex items-center gap-2 bg-primary hover:bg-primary-600 transition-colors"
-						disabled={configuring === "dataSource"}
-					>
-						{configuring === "dataSource" ? (
-							<Loader2 className="h-4 w-4 animate-spin" />
-						) : (
-							<Database className="h-4 w-4" />
-						)}
-						Configure Data Source
-					</Button>
-					<Button
-						onClick={handleConfigureFieldMapping}
-						className="flex items-center gap-2 bg-primary hover:bg-primary-600 transition-colors"
-						disabled={configuring === "fieldMapping"}
-					>
-						{configuring === "fieldMapping" ? (
-							<Loader2 className="h-4 w-4 animate-spin" />
-						) : (
-							<GitBranch className="h-4 w-4" />
-						)}
-						Configure Field Mapping
-					</Button>
+				<div className="space-y-4">
+					<div className="flex items-center gap-4">
+						<div className="flex-1">
+							<Label
+								htmlFor="integration-select"
+								className="text-sm font-medium text-gray-700 dark:text-gray-300"
+							>
+								Select Integration
+							</Label>
+							<Select
+								id="integration-select"
+								value={selectedIntegration}
+								onChange={(e) => setSelectedIntegration(e.target.value)}
+								className="w-full bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 border-gray-200 dark:border-gray-800"
+							>
+								<option value="">Choose an integration...</option>
+								{integrations.map((integration) => (
+									<option key={integration.key} value={integration.key}>
+										{integration.name}
+									</option>
+								))}
+							</Select>
+						</div>
+					</div>
+					<div className="flex gap-4">
+						<Button
+							onClick={handleConfigureDataSource}
+							className="flex items-center gap-2 bg-primary hover:bg-primary-600 transition-colors"
+							disabled={configuring === "dataSource" || !selectedIntegration}
+						>
+							{configuring === "dataSource" ? (
+								<Loader2 className="h-4 w-4 animate-spin" />
+							) : (
+								<Database className="h-4 w-4" />
+							)}
+							Configure Data Source
+						</Button>
+						<Button
+							onClick={handleConfigureFieldMapping}
+							className="flex items-center gap-2 bg-primary hover:bg-primary-600 transition-colors"
+							disabled={configuring === "fieldMapping" || !selectedIntegration}
+						>
+							{configuring === "fieldMapping" ? (
+								<Loader2 className="h-4 w-4 animate-spin" />
+							) : (
+								<GitBranch className="h-4 w-4" />
+							)}
+							Configure Field Mapping
+						</Button>
+					</div>
 				</div>
 			)}
 
