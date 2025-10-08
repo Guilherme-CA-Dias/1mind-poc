@@ -1,7 +1,7 @@
 export const RECORD_ACTIONS = [
 	{
-		key: "get-equipment",
-		name: "Equipment",
+		key: "get-leads",
+		name: "Leads",
 		type: "default",
 	},
 ] as const;
@@ -9,5 +9,5 @@ export const RECORD_ACTIONS = [
 export type RecordActionKey = (typeof RECORD_ACTIONS)[number]["key"] | string;
 
 export const DEFAULT_FORMS = [
-	{ formId: "equipment", formTitle: "Equipment", type: "default" },
+	{ formId: "leads", formTitle: "Leads", type: "default" },
 ] as const;
