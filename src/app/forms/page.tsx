@@ -16,6 +16,7 @@ import { Plus, Database, GitBranch, Loader2 } from "lucide-react";
 import { DynamicForm } from "./components/dynamic-form";
 import { useIntegrationApp, useIntegrations } from "@integration-app/react";
 import { useAuth } from "@/app/auth-provider";
+import { DEFAULT_FORMS } from "@/lib/constants";
 
 interface FormDefinition {
 	_id: string;
@@ -138,8 +139,17 @@ export default function FormsPage() {
 		try {
 			setConfiguring("dataSource");
 
-			// Use the exact form ID as the data source key (e.g., 'leads', 'AI_Engagement_Conversation__c', etc.)
-			const dataSourceKey = form.formId;
+			// Check if this is a default form - if so, use the exact form ID, otherwise use "objects"
+			const isDefaultForm = DEFAULT_FORMS.some(
+				(defaultForm) => defaultForm.formId === form.formId
+			);
+			const dataSourceKey = isDefaultForm ? form.formId : "objects";
+
+			// First, open the data source configuration
+			await integrationApp
+				.connection(selectedIntegration)
+				.dataSource(dataSourceKey, { instanceKey: form.formId })
+				.get({ autoCreate: true });
 
 			// First, open the data source configuration
 			await integrationApp

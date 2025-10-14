@@ -209,7 +209,6 @@ export async function GET(request: NextRequest) {
 						const recordToSave = {
 							...record,
 							integrationKey: record.integrationKey || null,
-							integration: record.integrationKey || null,
 						};
 
 						console.log(
@@ -228,11 +227,6 @@ export async function GET(request: NextRequest) {
 						console.log(
 							`Saved record integrationKey:`,
 							savedRecord.integrationKey
-						);
-						console.log(`Saved record integration:`, savedRecord.integration);
-						console.log(
-							"Full saved record:",
-							JSON.stringify(savedRecord, null, 2)
 						);
 					}
 				}

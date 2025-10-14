@@ -14,7 +14,6 @@ export interface IRecord {
 	recordType: string;
 	customerId: string;
 	integrationKey?: string;
-	integration?: string;
 }
 
 const recordSchema = new mongoose.Schema<IRecord>(
@@ -46,10 +45,6 @@ const recordSchema = new mongoose.Schema<IRecord>(
 			index: true,
 		},
 		integrationKey: {
-			type: String,
-			index: true,
-		},
-		integration: {
 			type: String,
 			index: true,
 		},
